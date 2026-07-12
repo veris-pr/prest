@@ -1,0 +1,47 @@
+FROM python:3.13-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+WORKDIR /app
+
+RUN python -m pip install --no-cache-dir uv==0.6.3
+
+COPY pyproject.toml uv.lock README.md ./
+COPY prest_py ./prest_py
+
+# Install runtime deps + the package into a clean venv without editable install.
+RUN uv sync --frozen --no-dev --no-editable
+
+# ---- runtime image ----
+FROM python:3.13-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+LABEL org.opencontainers.image.title="prestd-python" \
+      org.opencontainers.image.source="https://github.com/prest/prest" \
+      org.opencontainers.image.description="pREST Python rewrite — REST API over PostgreSQL" \
+      org.opencontainers.image.licenses="MIT"
+
+WORKDIR /app
+
+# Create non-root user and copy the venv + app source.
+RUN groupadd --system --gid 1001 prest && \
+    useradd --system --uid 1001 --gid prest --no-create-home --home-dir /app prest
+
+COPY --from=builder --chown=prest:prest /app/.venv /app/.venv
+
+USER prest
+
+EXPOSE 3000
+
+# Liveness: the prestd CLI binds and serves; curl-free HEALTHCHECK uses the
+# in-image python to hit /_health. Slim image has no curl.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:3000/_health',timeout=4).status==200 else 1)" || exit 1
+
+CMD ["prestd", "--host", "0.0.0.0", "--port", "3000"]

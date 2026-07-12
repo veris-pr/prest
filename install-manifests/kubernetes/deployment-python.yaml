@@ -1,0 +1,89 @@
+# Kubernetes deployment for the pREST Python implementation.
+#
+# Differences from the Go manifest (deployment.yaml):
+#   - image: prest/prest-python:<tag>
+#   - entrypoint: prestd (Typer CLI), CMD host/port baked in image
+#   - probes unchanged: /_health (liveness), /_ready (readiness)
+#   - migrations: run separately via the Go prestd binary/image before
+#     rolling this deployment forward (see docs/python-migrations.md)
+#
+# Env vars are compatible with the Go deployment; the Python loader reads the
+# same PREST_* keys (see prest_py/settings/loader.py).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: prest
+    prestService: custom
+    prestImplementation: python
+  name: prest-python
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prest
+      prestImplementation: python
+  template:
+    metadata:
+      labels:
+        app: prest
+        prestImplementation: python
+    spec:
+      containers:
+        - image: prest/prest-python:v1
+          imagePullPolicy: IfNotPresent
+          name: prest
+          env:
+            # Multi-cluster registry (env-first). Pair each alias with its URL secret.
+            - name: DATABASE_ALIAS_1
+              value: tenant-a
+            - name: DATABASE_URL_1
+              valueFrom:
+                secretKeyRef:
+                  name: tenant-a-db
+                  key: url
+            - name: DATABASE_ALIAS_2
+              value: tenant-b
+            - name: DATABASE_URL_2
+              valueFrom:
+                secretKeyRef:
+                  name: tenant-b-db
+                  key: url
+            # Legacy single-DB fallback when no registry env vars are set:
+            # - name: DATABASE_URL
+            #   value: postgres://username:password@hostname:port/dbname
+            - name: PREST_DEBUG
+              value: "false"
+            - name: PREST_AUTH_ENABLED
+              value: "true"
+            - name: PREST_JWT_DEFAULT
+              value: "true"
+            # HMAC JWT key (set via secret in production):
+            - name: PREST_JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: prest-jwt
+                  key: key
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /_ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
