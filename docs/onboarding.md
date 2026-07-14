@@ -15,33 +15,41 @@ make a change safely.
 
 ---
 
+## Documentation map (Diátaxis)
+
+pREST docs follow [Diátaxis](https://diataxis.fr) — four kinds of docs for four
+needs. Pick the one matching what you want right now.
+
+| You want to... | Read | Docs |
+|---|---|---|
+| **learn** pREST from scratch, by doing | Tutorials | [`docs/tutorials/`](tutorials/README.md) |
+| **do** a specific task | How-to guides | [`CONTRIBUTING.md`](../CONTRIBUTING.md), [`docs/migration-guide.md`](migration-guide.md), [`docs/python-plugins.md`](python-plugins.md), [`docs/tuning.md`](tuning.md) |
+| look up a **fact** about the machinery | Reference | [`docs/reference.md`](reference.md) |
+| **understand** why it is built this way | Explanation | [`docs/architecture.md`](architecture.md), [`docs/python-migrations.md`](python-migrations.md) |
+
+**New here?** Do Tutorial 1 first, then follow the Steps below to become a
+contributor.
+
+---
+
 ## Step 0 — Run it (10 minutes)
 
 You need Docker. No Go, no Postgres install required.
 
-```sh
-git clone <repo> && cd prest
+**Do [Tutorial 1 — Turn a table into a REST API](tutorials/getting-started.md).**
+It is a hand-held lesson that starts pREST, seeds a table, and reads/writes it
+over HTTP in ~10 minutes. Come back here when you finish — the rest of this
+page explains what you just did.
 
-# Start Postgres + the Python server (host port 23000)
-docker compose -f docker-compose-prod-python.yml up -d --build
-
-# First request — list the `test` table (after seeding; see below)
-curl http://127.0.0.1:23000/_health        # -> 503 until DB seeded, 200 after
-```
-
-The prod compose starts Postgres but does not seed or migrate. For a ready
-seeded DB + running server, use the parity harness (it seeds a `test` table):
-
-```sh
-bash scripts/run-parity.sh   # builds Go + Python, seeds, runs parity checks, tears down
-```
-
-Or run the server directly with a local/remote Postgres:
+Already ran it? Quick reference for running the server outside the tutorial:
 
 ```sh
 uv sync --extra dev
 PREST_PG_HOST=... PREST_PG_USER=... PREST_PG_PASS=... PREST_PG_DATABASE=... \
 uv run prestd --host 0.0.0.0 --port 3000
+
+# or a self-contained stack (auth off, for learning):
+docker compose -f docker-compose-tutorial.yml up -d --build
 ```
 
 Version check:
@@ -189,7 +197,7 @@ Follow `CONTRIBUTING.md` for the full workflow. The 5-minute version:
 
 ```sh
 uv sync --extra dev
-uv run ruff check prest_py tests           # lint
+uv run ruff check prest_py tests/python   # lint
 uv run pytest tests/python -q              # unit tests (should be green)
 make test-contract-python                  # HTTP contract vs Go (docker)
 ```
@@ -233,4 +241,4 @@ Before you start a non-trivial change, read `docs/architecture.md`
 - [ ] Add a unit test and a contract test in the right files.
 
 Next: `CONTRIBUTING.md` for conventions, PR checklist, and "how to add X"
-recipes. Welcome aboard.
+recipes. For facts, `docs/reference.md`. Welcome aboard.

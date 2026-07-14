@@ -1,0 +1,14 @@
+# Tutorial 2 override: turn JWT on for the secure-an-endpoint tutorial.
+#
+# Apply on top of docker-compose-tutorial.yml:
+#   docker compose -f docker-compose-tutorial.yml -f docker-compose-tutorial-auth.yml up -d --build
+services:
+  prest-python:
+    environment:
+      PREST_JWT_DEFAULT: "true"
+      PREST_JWT_KEY: "tutorial-secret-key-at-least-32-bytes-long"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/_health', timeout=2).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20

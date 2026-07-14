@@ -24,10 +24,10 @@ Run these before pushing. They are the same checks CI runs.
 
 ```sh
 # Lint — must be clean
-uv run ruff check prest_py tests scripts
+uv run ruff check prest_py tests/python
 
 # Format check (apply fixes with: uv run ruff format <files>)
-uv run ruff format --check prest_py tests scripts
+uv run ruff format --check prest_py tests/python
 
 # Unit tests — pure-Python, no DB, fast
 uv run pytest tests/python -q
