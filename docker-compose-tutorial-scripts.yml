@@ -1,0 +1,18 @@
+# Tutorial 3 override: mount a local queries directory and enable _QUERIES scripts.
+#
+# Apply on top of docker-compose-tutorial.yml:
+#   docker compose -f docker-compose-tutorial.yml -f docker-compose-tutorial-scripts.yml up -d --build
+#
+# The ./tutorial-queries directory (you create it in the tutorial) is mounted
+# at /queries inside the container; PREST_QUERIES_LOCATION points pREST at it.
+services:
+  prest-python:
+    environment:
+      PREST_QUERIES_LOCATION: "/queries"
+    volumes:
+      - ./tutorial-queries:/queries:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/_health', timeout=2).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20

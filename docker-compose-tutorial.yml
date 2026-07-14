@@ -1,0 +1,35 @@
+# Self-contained environment for the tutorials in docs/tutorials/.
+#
+# Postgres + the Python server, auth OFF, host port 23000. This is the
+# controlled "contrived setting" a tutorial needs so the reader can focus on
+# one new thing at a time. Tutorial 2 turns auth on via the auth override.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: prest
+      POSTGRES_DB: prest
+      POSTGRES_PASSWORD: prest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      retries: 20
+  prest-python:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    environment:
+      PREST_DEBUG: "false"
+      PREST_AUTH_ENABLED: "false"
+      PREST_PG_HOST: postgres
+      PREST_PG_USER: prest
+      PREST_PG_PASS: prest
+      PREST_PG_DATABASE: prest
+      PREST_PG_PORT: "5432"
+      PREST_SSL_MODE: disable
+      PREST_CACHE_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "23000:3000"

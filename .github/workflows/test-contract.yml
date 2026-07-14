@@ -1,0 +1,56 @@
+name: test-contract
+run-name: contract tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/test-contract.yml"
+      - "Makefile"
+      - "docker-compose-test.yml"
+      - "Dockerfile.python"
+      - "prest_py/**"
+      - "pyproject.toml"
+      - "tests/contract/**"
+      - "uv.lock"
+      - "docs/python-contract-freeze.md"
+  push:
+    branches:
+      - "main"
+    tags:
+      - "v*"
+    paths:
+      - ".github/workflows/test-contract.yml"
+      - "Makefile"
+      - "docker-compose-test.yml"
+      - "Dockerfile.python"
+      - "prest_py/**"
+      - "pyproject.toml"
+      - "tests/contract/**"
+      - "uv.lock"
+      - "docs/python-contract-freeze.md"
+
+jobs:
+  go-oracle-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run Go oracle contract tests
+        run: make test-contract-go CONTRACT_ARGS="-q"
+
+  python-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run Python contract tests
+        run: make test-contract-python CONTRACT_ARGS="-q"

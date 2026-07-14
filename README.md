@@ -48,6 +48,29 @@ Deploy to Heroku and instantly get a realtime RESTFul API backed by Heroku Postg
 
 Visit <https://docs.prestd.com/>
 
+## Python implementation
+
+A Python rewrite (FastAPI/Pydantic/asyncpg) lives under `prest_py/` with its own `Dockerfile.python`, `pyproject.toml`, and `tests/`. It targets API contract parity with the Go binary; the Go `prestd` binary remains the migration tool.
+
+**New to the codebase?** Start with [`docs/onboarding.md`](docs/onboarding.md) (run it in 10 minutes → architecture → data flow → first contribution), then [`docs/architecture.md`](docs/architecture.md). To contribute, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+Docs by need (Diátaxis):
+
+- **Learn by doing (tutorials):** [`docs/tutorials/`](docs/tutorials/README.md)
+- **Do a task (how-to):** [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/migration-guide.md`](docs/migration-guide.md), [`docs/python-plugins.md`](docs/python-plugins.md), [`docs/tuning.md`](docs/tuning.md)
+- **Look up a fact (reference):** [`docs/reference.md`](docs/reference.md)
+- **Understand why (explanation):** [`docs/architecture.md`](docs/architecture.md), [`docs/python-migrations.md`](docs/python-migrations.md)
+
+Other reference docs:
+
+- Plan: [`docs/python-rewrite-plan.md`](docs/python-rewrite-plan.md)
+- Migration guide (Go→Python): [`docs/migration-guide.md`](docs/migration-guide.md)
+- Plugins: [`docs/python-plugins.md`](docs/python-plugins.md)
+- Migrations (Go binary stays): [`docs/python-migrations.md`](docs/python-migrations.md)
+- Performance snapshot + tuning: [`docs/performance.md`](docs/performance.md), [`docs/tuning.md`](docs/tuning.md)
+
+The Go binary remains the default unless you opt into the Python image.
+
 ## Multi-database
 
 pREST uses the first URL path segment as the **database selector** for CRUD, catalog, and optional script routes. Two modes are supported:

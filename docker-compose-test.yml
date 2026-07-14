@@ -18,6 +18,12 @@ x-prestd-service: &prestd-service
   volumes:
     - ./:/workspace
 
+x-prestd-python-service: &prestd-python-service
+  image: prest-python-contract:local
+  working_dir: /app
+  volumes:
+    - ./testdata:/workspace/testdata:ro
+
 services:
   postgres:
     image: postgres:16
@@ -136,6 +142,82 @@ services:
       retries: 30
       start_period: 90s
 
+  prestd-python:
+    <<: *prestd-python-service
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *prest-env
+      PREST_CONF: /workspace/testdata/prest.toml
+      PREST_DEBUG: "true"
+      PREST_JWT_DEFAULT: "false"
+      PREST_CACHE_ENABLED: "false"
+      PREST_ACCESS_RESTRICT: "false"
+      PREST_AUTH_ENABLED: "false"
+      PREST_PG_SINGLE: "false"
+      PREST_HTTP_PORT: "3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/_health', timeout=2).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  prestd-python-multicluster:
+    <<: *prestd-python-service
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      postgres-b:
+        condition: service_healthy
+    environment:
+      <<: *prest-env
+      PREST_CONF: /workspace/testdata/prest_multicluster.toml
+      PREST_DEBUG: "true"
+      PREST_JWT_DEFAULT: "false"
+      PREST_CACHE_ENABLED: "false"
+      PREST_ACCESS_RESTRICT: "false"
+      PREST_AUTH_ENABLED: "false"
+      PREST_HTTP_PORT: "3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/_health', timeout=2).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  prestd-python-auth:
+    <<: *prestd-python-service
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *prest-env
+      PREST_CONF: /workspace/testdata/prest.toml
+      PREST_DEBUG: "true"
+      PREST_JWT_DEFAULT: "false"
+      PREST_CACHE_ENABLED: "false"
+      PREST_AUTH_ENABLED: "true"
+      PREST_JWT_KEY: integration-test-secret
+      PREST_PG_SINGLE: "false"
+      PREST_HTTP_PORT: "3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/_health', timeout=2).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
   tests:
     <<: *prestd-service
     depends_on:
@@ -153,3 +235,43 @@ services:
       PREST_AUTH_TEST_URL: http://prestd-auth:3002
     command: >-
       bash -lc "apt-get update && apt-get install -y --no-install-recommends postgresql-client git ca-certificates && bash -x ./testdata/runtest.sh"
+
+  contract-tests:
+    image: python:3.13-slim
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    depends_on:
+      prestd:
+        condition: service_healthy
+      prestd-multicluster:
+        condition: service_healthy
+      prestd-auth:
+        condition: service_healthy
+    environment:
+      PREST_TEST_URL: http://prestd:3000
+      PREST_MULTICLUSTER_TEST_URL: http://prestd-multicluster:3001
+      PREST_AUTH_TEST_URL: http://prestd-auth:3002
+      CONTRACT_ARGS: ""
+    command: >-
+      bash -lc "python -m pip install -r tests/contract/requirements.txt && python -m pytest tests/contract --target=go $${CONTRACT_ARGS}"
+
+  contract-tests-python:
+    image: python:3.13-slim
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    depends_on:
+      prestd-python:
+        condition: service_healthy
+      prestd-python-multicluster:
+        condition: service_healthy
+      prestd-python-auth:
+        condition: service_healthy
+    environment:
+      PY_PREST_TEST_URL: http://prestd-python:3000
+      PY_PREST_MULTICLUSTER_TEST_URL: http://prestd-python-multicluster:3000
+      PY_PREST_AUTH_TEST_URL: http://prestd-python-auth:3000
+      CONTRACT_ARGS: ""
+    command: >-
+      bash -lc "python -m pip install -r tests/contract/requirements.txt && python -m pytest tests/contract --target=python $${CONTRACT_ARGS}"

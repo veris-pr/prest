@@ -1,7 +1,10 @@
 DOCKER_COMPOSE?=docker-compose -f docker-compose.yml
+TEST_DOCKER_COMPOSE?=docker compose -f docker-compose-test.yml
+PYTEST_CONTRACT?=uvx --from pytest pytest
+CONTRACT_ARGS?=
 UNIT_PKGS = $(shell go list ./... | grep -v '/integration')
 
-.PHONY: build_test_image test test-unit test-integration
+.PHONY: build_test_image test test-unit test-integration test-contract test-contract-go test-contract-python
 build_test_image:
 	$(DOCKER_COMPOSE) up -d postgres
 
@@ -11,10 +14,26 @@ test-unit:
 	go test -timeout 30s -tags prest_test_hooks -race -count=1 -covermode=atomic -coverprofile=coverage.out $(UNIT_PKGS)
 
 test-integration:
-	docker compose -f docker-compose-test.yml up -d --wait postgres postgres-b db-init prestd prestd-multicluster prestd-auth && \
-	docker compose -f docker-compose-test.yml run --rm --no-deps tests; \
+	$(TEST_DOCKER_COMPOSE) up -d --wait postgres postgres-b db-init prestd prestd-multicluster prestd-auth && \
+	$(TEST_DOCKER_COMPOSE) run --rm --no-deps tests; \
 	status=$$?; \
-	docker compose -f docker-compose-test.yml down -v --remove-orphans; \
+	$(TEST_DOCKER_COMPOSE) down -v --remove-orphans; \
+	exit $$status
+
+test-contract: test-contract-go
+
+test-contract-go:
+	$(TEST_DOCKER_COMPOSE) up -d --wait postgres postgres-b db-init prestd prestd-multicluster prestd-auth && \
+	$(TEST_DOCKER_COMPOSE) run --rm --no-deps -e CONTRACT_ARGS="$(CONTRACT_ARGS)" contract-tests; \
+	status=$$?; \
+	$(TEST_DOCKER_COMPOSE) down -v --remove-orphans; \
+	exit $$status
+
+test-contract-python:
+	$(TEST_DOCKER_COMPOSE) up -d --build --wait postgres postgres-b db-init prestd-python prestd-python-multicluster prestd-python-auth && \
+	$(TEST_DOCKER_COMPOSE) run --rm --no-deps -e CONTRACT_ARGS="$(CONTRACT_ARGS)" contract-tests-python; \
+	status=$$?; \
+	$(TEST_DOCKER_COMPOSE) down -v --remove-orphans; \
 	exit $$status
 
 .PHONY: dc-up
